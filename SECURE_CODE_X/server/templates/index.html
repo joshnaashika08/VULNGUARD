@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VULNGUARD | AI Security Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #020617;
+            --bg-card: #0f172a;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.4);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #0ea5e9;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Outfit', 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+        }
+
+        .navbar {
+            padding: 1rem 2rem;
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 20px var(--accent-glow);
+        }
+
+        .action-card {
+            cursor: pointer;
+            text-align: center;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .action-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.1);
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+            border: none;
+            color: white;
+            font-weight: 700;
+            padding: 1rem 2rem;
+            border-radius: 0.8rem;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-gradient:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(37, 99, 235, 0.4);
+            color: white;
+        }
+
+        .vulnerability-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .bg-critical {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .bg-high {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+            border: 1px solid #f97316;
+        }
+
+        .bg-medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+        }
+
+        .bg-low {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+
+        .score-display {
+            font-size: 4.5rem;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .scan-mode-container {
+            display: none;
+        }
+
+        .active {
+            display: block !important;
+        }
+
+        .scanning-loader {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--accent);
+            border-top: 4px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #monaco-container {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1e1e1e;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3" onclick="showSection('landing')" style="cursor: pointer;">
+                <div
+                    style="background: var(--accent); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-shield-halved text-white"></i>
+                </div>
+                <h3 class="m-0 fw-bold tracking-tight">VULN<span class="text-info">GUARD</span></h3>
+            </div>
+            <div id="live-feed" class="text-info small fw-bold opacity-75 d-none d-md-block"
+                style="border-left: 2px solid var(--info); padding-left: 15px; min-width: 250px;">
+                <i class="fas fa-satellite-dish me-2"></i> Initializing Security Feed...
+            </div>
+            <div class="d-flex gap-4 align-items-center">
+                <a href="#" class="text-decoration-none text-secondary hover-white d-none d-sm-block"
+                    onclick="showSection('landing')">Dashboard</a>
+                <div class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">v2.0
+                    PRO</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Landing Section -->
+    <div id="landing-section" class="container py-5 active">
+        <div class="text-center mb-5">
+            <div
+                class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill mb-3 border border-info border-opacity-25">
+                <i class="fas fa-shield-halved me-2"></i> AI-POWERED SECURITY AUDIT
+            </div>
+            <h1 class="display-3 fw-black text-white mb-3">SECURE YOUR <span class="text-info">CODE</span></h1>
+            <p class="lead text-secondary max-width-700 mx-auto">
+                Advanced static analysis (AST) and pattern matching for Python, C, C++, and Java.
+            </p>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-4" onclick="showSection('scan-code')">
+                <div class="glass-card action-card slide-up">
+                    <div class="action-icon"><i class="fas fa-code"></i></div>
+                    <div>
+                        <h4 class="fw-bold">Scan Snippet</h4>
+                        <p class="text-secondary small">Instant deep-level analysis for raw code blocks.</p>
+                    </div>
+                    <button class="btn btn-outline-info w-100 rounded-pill">Analyze Snippet</button>
+                </div>
+            </div>
+            <div class="col-md-4" onclick="showSection('scan-github')">
+                <div class="glass-card action-card slide-up" style="animation-delay: 0.1s;">
+                    <div class="action-icon"><i class="fab fa-github"></i></div>
+                    <div>
+                        <h4 class="fw-bold">GitHub Repo</h4>
+                        <p class="text-secondary small">Scan entire public repositories via URL.</p>
+                    </div>
+                    <button class="btn btn-outline-info w-100 rounded-pill">Connect Repo</button>
+                </div>
+            </div>
+            <div class="col-md-4" onclick="showSection('scan-folder')">
+                <div class="glass-card action-card slide-up" style="animation-delay: 0.2s;">
+                    <div class="action-icon"><i class="fas fa-folder-tree"></i></div>
+                    <div>
+                        <h4 class="fw-bold">Local Folder</h4>
+                        <p class="text-secondary small">Recursive audit of local directories.</p>
+                    </div>
+                    <button class="btn btn-outline-info w-100 rounded-pill">Select Folder</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="history-container" class="slide-up" style="display: none; animation-delay: 0.3s;">
+            <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+                <i class="fas fa-history text-secondary"></i> Recent Scans
+            </h5>
+            <div class="glass-card p-0 overflow-hidden">
+                <table class="table table-dark table-hover m-0">
+                    <thead class="text-secondary small text-uppercase">
+                        <tr>
+                            <th class="ps-4 py-3">Timestamp</th>
+                            <th class="py-3">Language</th>
+                            <th class="py-3">Findings</th>
+                            <th class="py-3 text-center">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan Code Section -->
+    <div id="scan-code-section" class="container py-5 scan-mode-container">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <button class="btn btn-dark rounded-circle" onclick="showSection('landing')"><i
+                    class="fas fa-arrow-left"></i></button>
+            <h2 class="m-0 fw-bold">Source Analysis</h2>
+        </div>
+
+        <div class="glass-card mb-4">
+            <div class="d-flex justify-content-between mb-3">
+                <span class="text-secondary"><i class="fas fa-info-circle me-2"></i>Live AST Engine Active</span>
+                <span id="editorStatus" class="badge bg-dark border border-secondary text-secondary">IDLE</span>
+            </div>
+            <div id="monaco-container" style="height: 400px;" class="mb-4"></div>
+            <button onclick="analyzeCode()" class="btn btn-gradient w-100 py-3" id="analyzeBtn">Initialize Deep
+                Scan</button>
+        </div>
+
+        <div id="resultsArea" style="display: none;">
+            <!-- Score Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="glass-card text-center h-100">
+                        <p class="text-secondary text-uppercase small ls-1 fw-bold">Security Score</p>
+                        <div class="score-display" id="secScore">--</div>
+                        <div id="secScoreLabel" class="mt-2 fw-bold text-uppercase">N/A</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="glass-card text-center h-100">
+                        <p class="text-secondary text-uppercase small ls-1 fw-bold">Code Quality</p>
+                        <div class="score-display" id="qualScore" style="color: var(--accent);">--</div>
+                        <div class="progress mt-3 bg-dark" style="height: 6px; border-radius: 10px;">
+                            <div id="qualProgress" class="progress-bar bg-info" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-8">
+                    <div class="glass-card h-100">
+                        <h5 class="fw-bold mb-4"><i class="fas fa-chart-pie text-info me-2"></i> Severity Distribution
+                        </h5>
+                        <div style="height: 250px;"><canvas id="severityChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card h-100">
+                        <p class="text-secondary text-uppercase small ls-1 fw-bold">Engine Details</p>
+                        <h1 id="confScore" class="display-4 fw-black text-white">--%</h1>
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25"
+                            id="langBadge">Detecting...</span>
+                        <div class="mt-4 p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25">
+                            <div class="small text-secondary mb-1">Response Time</div>
+                            <div class="fw-bold" id="scanTime">0.00s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="fw-bold mb-4 d-flex align-items-center gap-2"><i class="fas fa-list-check text-info"></i>
+                Security Findings</h3>
+            <div id="vulnList"></div>
+        </div>
+    </div>
+
+    <!-- GitHub Section -->
+    <div id="scan-github-section" class="container py-5 scan-mode-container">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <button class="btn btn-dark rounded-circle" onclick="showSection('landing')"><i
+                    class="fas fa-arrow-left"></i></button>
+            <h2 class="m-0 fw-bold">GitHub Repository Scan</h2>
+        </div>
+        <div class="glass-card text-center py-5">
+            <i class="fab fa-github display-1 mb-4 text-secondary opacity-25"></i>
+            <h3>Git Integration</h3>
+            <p class="text-secondary mb-4">Analyze public repositories via URL.</p>
+            <div class="input-group mb-3 max-width-600 mx-auto" style="max-width: 600px;">
+                <input type="text" id="githubUrl" class="form-control bg-dark text-white border-secondary"
+                    placeholder="https://github.com/owner/repo">
+                <button class="btn btn-info px-4 fw-bold" id="githubBtn" onclick="analyzeGithub()">Scan Repo</button>
+            </div>
+            <div id="githubLoader" style="display: none;" class="mt-4">
+                <div class="scanning-loader mx-auto mb-3"></div>
+                <p class="text-info">Fetching and processing source tree...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Section -->
+    <div id="scan-folder-section" class="container py-5 scan-mode-container">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <button class="btn btn-dark rounded-circle" onclick="showSection('landing')"><i
+                    class="fas fa-arrow-left"></i></button>
+            <h2 class="m-0 fw-bold">Local Directory Audit</h2>
+        </div>
+        <div class="glass-card text-center py-5">
+            <i class="fas fa-folder-open display-1 mb-4 text-secondary opacity-25"></i>
+            <h3>Direct File Scan</h3>
+            <p class="text-secondary mb-4">Analyze all supported files in a local directory path.</p>
+            <div class="input-group mb-3 max-width-600 mx-auto" style="max-width: 600px;">
+                <input type="text" id="folderPath" class="form-control bg-dark text-white border-secondary"
+                    placeholder="C:\Projects\TargetApp">
+                <button class="btn btn-info px-4 fw-bold" id="folderBtn" onclick="analyzeFolder()">Start Audit</button>
+            </div>
+            <div id="folderLoader" style="display: none;" class="mt-4">
+                <div class="scanning-loader mx-auto mb-3"></div>
+                <p class="text-info">Scanning local filesystem...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <script>
+        let editor;
+        let severityChartInstance = null;
+
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('monaco-container'), {
+                value: "import os\n\ndef run_cmd(user_input):\n    # CRITICAL: Command Injection Vulnerability\n    os.system(user_input)\n",
+                language: 'python',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                fontSize: 14,
+                fontFamily: "'Fira Code', monospace",
+                minimap: { enabled: false },
+                padding: { top: 20 },
+                roundedSelection: true
+            });
+
+            let debounceTimer;
+            editor.onDidChangeModelContent(() => {
+                const status = document.getElementById('editorStatus');
+                status.innerText = 'TYPING...';
+                status.classList.replace('bg-dark', 'bg-info');
+                status.classList.replace('text-secondary', 'text-white');
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    status.innerText = 'IDLE';
+                    status.classList.replace('bg-info', 'bg-dark');
+                    status.classList.replace('text-white', 'text-secondary');
+                }, 1000);
+            });
+        });
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.container, .scan-mode-container').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(sectionId + '-section');
+            if (target) {
+                target.classList.add('active');
+                if (sectionId === 'scan-code' && editor) editor.layout();
+            }
+            window.scrollTo(0, 0);
+        }
+
+        async function analyzeCode() {
+            if (!editor) return;
+            const code = editor.getValue();
+            if (!code.trim()) return;
+
+            const btn = document.getElementById('analyzeBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Analyzing AST...';
+            btn.disabled = true;
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                const data = await response.json();
+                const endTime = performance.now();
+
+                data.scan_time = ((endTime - startTime) / 1000).toFixed(2);
+                renderResults(data);
+                saveToHistory(data);
+            } catch (e) {
+                alert('Connection to security engine lost.');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function analyzeGithub() {
+            const url = document.getElementById('githubUrl').value;
+            if (!url) return;
+            const btn = document.getElementById('githubBtn');
+            const loader = document.getElementById('githubLoader');
+            btn.disabled = true;
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/analyze/github', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await response.json();
+                renderResults(data);
+            } catch (e) {
+                alert("GitHub scan failed.");
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+
+        async function analyzeFolder() {
+            const path = document.getElementById('folderPath').value;
+            if (!path) return;
+            const btn = document.getElementById('folderBtn');
+            const loader = document.getElementById('folderLoader');
+            btn.disabled = true;
+            if (loader) loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/analyze/local', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                const data = await response.json();
+                renderResults(data);
+            } catch (e) {
+                alert("Directory scan failed.");
+            } finally {
+                btn.disabled = false;
+                if (loader) loader.style.display = 'none';
+            }
+        }
+
+        function renderResults(data) {
+            showSection('scan-code');
+            document.getElementById('resultsArea').style.display = 'block';
+
+            animateValue("secScore", 0, parseInt(data.security_score || 0), 800);
+            animateValue("qualScore", 0, parseInt(data.code_quality_score || 0), 800);
+            document.getElementById('confScore').innerText = (data.overall_confidence || 'High') + '%';
+            document.getElementById('langBadge').innerText = (data.language || 'Python').toUpperCase();
+            document.getElementById('qualProgress').style.width = (data.code_quality_score || 0) + '%';
+            document.getElementById('scanTime').innerText = (data.scan_time || '0.05') + 's';
+
+            const sec = parseInt(data.security_score || 0);
+            const color = sec > 75 ? 'var(--success)' : (sec > 45 ? 'var(--warning)' : 'var(--danger)');
+            document.getElementById('secScore').style.color = color;
+            document.getElementById('secScoreLabel').innerText = sec > 75 ? 'SECURE' : (sec > 45 ? 'WARNING' : 'CRITICAL');
+            document.getElementById('secScoreLabel').style.color = color;
+
+            renderChart(data.vulnerabilities || []);
+            renderFindings(data.vulnerabilities || []);
+
+            setTimeout(() => {
+                document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        function renderChart(vulns) {
+            const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+            vulns.forEach(v => {
+                if (v.severity in counts) counts[v.severity]++;
+            });
+
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            if (severityChartInstance) severityChartInstance.destroy();
+
+            severityChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [counts.Critical, counts.High, counts.Medium, counts.Low],
+                        backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#10b981'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        function renderFindings(vulns) {
+            const list = document.getElementById('vulnList');
+            list.innerHTML = '';
+
+            if (vulns.length === 0) {
+                list.innerHTML = `<div class="glass-card text-center py-5 slide-up"><i class="fas fa-check-circle text-success display-4 mb-3"></i><h3>Zero Defects Detected</h3><p class="text-secondary">Code meets security baseline standards.</p></div>`;
+                return;
+            }
+
+            vulns.forEach((v, i) => {
+                const badgeClass = `bg-${v.severity.toLowerCase()}`;
+                const fileHtml = v.file ? `<div class="text-info small mb-1"><i class="fas fa-file-code me-1"></i> ${v.file}</div>` : '';
+                list.innerHTML += `
+                    <div class="glass-card mb-4 slide-up" style="animation-delay: ${i * 0.1}s; border-left: 5px solid var(--${v.severity.toLowerCase()})">
+                        ${fileHtml}
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="vulnerability-badge ${badgeClass} mb-2 d-inline-block">${v.severity}</span>
+                                <h4 class="m-0 fw-bold">${v.type}</h4>
+                            </div>
+                            <div class="text-secondary small">Line ${v.line}</div>
+                        </div>
+                        <p class="text-secondary mb-3">${v.description}</p>
+                        <div class="p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 mb-3">
+                            <div class="small fw-bold text-info mb-2"><i class="fas fa-magic"></i>PATCH SUGGESTION</div>
+                            <code class="text-info">${v.suggested_fix}</code>
+                        </div>
+                        <button class="btn btn-sm btn-outline-info rounded-pill px-3" onclick="getAiDetails('${v.type}')">
+                            <i class="fas fa-robot me-1"></i> AI Advisory
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function saveToHistory(data) {
+            let history = JSON.parse(localStorage.getItem('vuln_history') || '[]');
+            history.unshift({
+                time: new Date().toLocaleTimeString(),
+                lang: data.language || 'Python',
+                vulns: data.vulnerabilities ? data.vulnerabilities.length : 0,
+                score: data.security_score || 0
+            });
+            localStorage.setItem('vuln_history', JSON.stringify(history.slice(0, 5)));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('vuln_history') || '[]');
+            if (history.length === 0) return;
+            document.getElementById('history-container').style.display = 'block';
+            document.getElementById('historyBody').innerHTML = history.map(h => `
+                <tr>
+                    <td class="ps-4 py-3 text-secondary small">${h.time}</td>
+                    <td class="py-3"><span class="badge bg-dark border border-secondary border-opacity-25">${h.lang.toUpperCase()}</span></td>
+                    <td class="py-3 text-info fw-bold">${h.vulns} Findings</td>
+                    <td class="py-3 text-center fw-bold" style="color: ${h.score > 70 ? 'var(--success)' : 'var(--warning)'}">${h.score}</td>
+                </tr>
+            `).join('');
+        }
+
+        function simulateFeed() {
+            const feed = document.getElementById('live-feed');
+            const messages = ["New AST pattern loaded", "Buffer overflow probe active", "AI patch engine standby", "Recursive scan initialized", "High-severity threat detected"];
+            setInterval(() => {
+                const msg = messages[Math.floor(Math.random() * messages.length)];
+                feed.innerHTML = `<i class="fas fa-satellite-dish me-2"></i> ${msg}`;
+            }, 6000);
+        }
+
+        async function getAiDetails(type) {
+            try {
+                const response = await fetch('/ai/fix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type })
+                });
+                const data = await response.json();
+                alert(`AI SECURITY ADVISORY:\n\n${data.suggestion}\n\nTechnical Note: ${data.explained}`);
+            } catch (e) { console.error(e); }
+        }
+
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerText = Math.floor(progress * (end - start) + start);
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        window.onload = () => { loadHistory(); simulateFeed(); };
+    </script>
+</body>
+
+</html>
